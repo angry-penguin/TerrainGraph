@@ -9,6 +9,7 @@ float GetHeight1(int x, int y)
 	uint2 size;
 	Input.GetDimensions(size.x, size.y);
 
+	return Input[clamp(int2(x, y), 0, size - 1)];
 	return tan(0.5 * PI * Input[clamp(int2(x, y), 0, size - 1)].r);
 }
 
@@ -34,33 +35,90 @@ void GetDerivatives1(int2 id, float3 Scale, out float2 d0, out float3 d1)
 	d1.z = (tr - br - tl + bl) / (4.0 * Scale.x * Scale.z);
 }
 
+float Angle(float2 from, float2 to)
+{
+	return acos(dot(from, to));
+}
+
+float PerpDot(float2 a, float2 b)
+{
+	return a.x * b.y - a.y * b.x;
+}
+
+float SignedAngle(float2 from, float2 to)
+{
+	return atan2(PerpDot(from, to), dot(from, to));
+}
+
+float FastSign(float x)
+{
+	return x >= 0 ? 1 : -1;
+}
+
+float SignedAngleNormalized(float2 from, float2 to)
+{
+	return Angle(from, to) * FastSign(PerpDot(from, to));
+}
+
+float Sq(float x)
+{
+	return x * x;
+}
+
 [numthreads(8, 8, 1)]
 void Curvature(uint2 id : SV_DispatchThreadID)
 {
-	float2 d0;
-	float3 d1;
-	GetDerivatives1(id, Scale, d0, d1);
+	// This calculates curvature by averaging the signed angles between four pairs of vectors from the center to each sample point
+	// Eg it calculates vectors from center to left and right, then the angle between left and right, and repeats for topRight-bottomLeft, top-bottm, topLeft-bottomRight
+	// This is essentially calculating four horizons and then averaging them to get the average visibility. A value of 0.5 indicates the local neighborhood has the same slope
+	// Values closer to 1 are convex, values closer to 0 are concave. A value of 1 or 0 indicates a fully closed or open sphere, but this is not possible with a heightmap
+	float c = GetHeight1(id.x + 0, id.y + 0);
+	
+	float r = GetHeight1(id.x + 1, id.y + 0);
+	float2 right = float2(1, r - c);
+	float l = GetHeight1(id.x - 1, id.y + 0);
+	float2 left = float2(-1, l - c);
+	float result = (SignedAngle(right, left) + PI) / (2 * PI);
+	
+	float tr = GetHeight1(id.x + 1, id.y + 1);
+	float2 topRight = float2(sqrt(2), tr - c);
+	float bl = GetHeight1(id.x - 1, id.y - 1);
+	float2 bottomLeft = float2(-sqrt(2), bl - c);
+	result += (SignedAngle(topRight, bottomLeft) + PI) / (2 * PI);
 
-	Result[id] = length(d0);
+	float t = GetHeight1(id.x + 0, id.y + 1);
+	float2 up = (float2(1, t - c));
+	float b = GetHeight1(id.x + 0, id.y - 1);
+	float2 down = (float2(-1, b - c));
+	float angleV = (SignedAngle(up, down) + PI) / (2 * PI);
+	result += angleV;
+
+	float br = GetHeight1(id.x + 1, id.y - 1);
+	float2 bottomRight = float2(-sqrt(2), tr - c);
+	float tl = GetHeight1(id.x - 1, id.y + 1);
+	float2 topLeft = float2(sqrt(2), bl - c);
+	result += (SignedAngle(topLeft, bottomRight) + PI) / (2 * PI);
+	
+	Result[id] = 1 - 0.25 * result;
 	return;
 	
-	float dx2 = d0.x * d0.x;
-	float dy2 = d0.y * d0.y;
-	float p = dx2 + dy2;
+	//float dx2 = d0.x * d0.x;
+	//float dy2 = d0.y * d0.y;
+	//float p = dx2 + dy2;
 
-	// Gaussian curvature
-	float ng = d1.x * d1.y - d1.z * d1.z;
-	float dg = pow(p + 1.0, 2.0);
-	float gaussianCurvature = ng / dg;
+	//// Gaussian curvature
+	//float ng = d1.x * d1.y - d1.z * d1.z;
+	//float dg = pow(p + 1.0, 2.0);
+	//float gaussianCurvature = ng / dg;
 
-	// Mean curvature
-	float nm = (1.0 + dy2) * d1.x - 2.0 * d1.z * d0.x * d0.y + (1.0 + dx2) * d1.y;
-	float dm = 2.0 * pow(p + 1.0, 1.5);
-	float meanCurvature = nm / dm;
+	//// Mean curvature
+	//float nm = (1.0 + dy2) * d1.x - 2.0 * d1.z * d0.x * d0.y + (1.0 + dx2) * d1.y;
+	//float dm = 2.0 * pow(p + 1.0, 1.5);
+	//float meanCurvature = nm / dm;
 
-	float d = sqrt(max(0.0, meanCurvature * meanCurvature - gaussianCurvature));
+	//float d = sqrt(max(0.0, meanCurvature * meanCurvature - gaussianCurvature));
 
-	float si = atan(meanCurvature / d) * INV_HALF_PI;
+	//float si = atan(meanCurvature / d) * INV_HALF_PI;
 
-	Result[id] = si * 0.5 + 0.5;
+	//Result[id] = si * 0.5 + 0.5;
 }
