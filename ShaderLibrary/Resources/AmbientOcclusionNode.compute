@@ -1,5 +1,6 @@
 #pragma kernel CSMain
 
+#include "Packages/com.arycama.noderenderpipeline/ShaderLibrary/SpaceTransforms.hlsl"
 #include "Packages/com.arycama.noderenderpipeline/ShaderLibrary/Utility.hlsl"
 #include "Packages/com.arycama.noderenderpipeline/ShaderLibrary/Geometry.hlsl"
 
@@ -9,6 +10,11 @@ uint Resolution;
 float3 Scale;
 float3 TerrainScale, TerrainSize;
 float Offset;
+
+#if defined(UNITY_COMPILER_DXC)
+	#define Pi 3.14159265
+	#define HalfPi 1.5707964
+#endif
 
 float GetHeight(int x, int y)
 {

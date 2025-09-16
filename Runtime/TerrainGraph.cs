@@ -24,6 +24,13 @@ namespace TerrainGraph
 
         private void OnDisable()
         {
+#if UNITY_EDITOR
+            // Not sure if this is appropriate.
+            // Added because otherwise there are null references from inside various 
+            // nodes' Cleanup() methods when building.
+            if (UnityEditor.BuildPipeline.isBuildingPlayer) return;
+#endif
+            
             if (isInitialized)
             {
                 foreach (var node in Nodes)

@@ -11,12 +11,18 @@
 	RWTexture2D<float2> Temp;
 #endif
 
-#define groupSize uint2(16, 16)
-groupshared float2 sdata[groupSize.x][groupSize.y];
+//#define groupSize uint2(16, 16) // Changed for compatibility with DXC / HLSL 2021
+#define GROUPSIZE_X 16
+#define GROUPSIZE_Y 16
 
-[numthreads(groupSize.x, groupSize.y, 1)]
+//groupshared float2 sdata[groupSize.x][groupSize.y];
+groupshared float2 sdata[GROUPSIZE_X][GROUPSIZE_Y];
+
+[numthreads(GROUPSIZE_X, GROUPSIZE_Y, 1)]
 void MinMaxNode(uint2 dispatchId : SV_DispatchThreadID, uint2 groupThreadId : SV_GroupThreadId, uint2 groupId : SV_GroupID)
 {
+	float2 groupSize = float2(GROUPSIZE_X, GROUPSIZE_Y);
+
 	uint2 size;
 	Input.GetDimensions(size.x, size.y);
 
