@@ -2,6 +2,7 @@
 #define UTILS_INCLUDED
 
 const static float PI = radians(180);
+const static float HALF_PI = radians(90);
 const static float INV_HALF_PI = rcp(radians(90));
 
 float Min4(float4 x)
