@@ -30,6 +30,11 @@ namespace TerrainGraph
             inputTypeIdsBuffer.Release();
         }
 
+        public GameObject[] GetPrefabsCopy()
+        {
+            return prefabs.Clone() as GameObject[];
+        }
+
         public override void Process(TerrainGraph graph, CommandBuffer command)
         {
             var terrainRenderer = graph.ActiveTerrain.GetComponent<ITerrainRenderer>();
